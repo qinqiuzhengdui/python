@@ -1,0 +1,289 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* hidden 属性必须优先于 .status 等显式 display 规则，
+   否则加载中提示会常驻页面（点开前也可见、完成后不消失） */
+[hidden] {
+  display: none !important;
+}
+
+body {
+  font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+  background: #f4f5f7;
+  color: #222;
+  min-height: 100vh;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 20px;
+}
+
+h1 {
+  font-size: 28px;
+  text-align: center;
+}
+
+.subtitle {
+  text-align: center;
+  color: #666;
+  margin: 8px 0 28px;
+}
+
+/* 输入区 */
+.crawl-form {
+  display: flex;
+  gap: 10px;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.crawl-form input[type="url"] {
+  flex: 1;
+  padding: 12px 16px;
+  font-size: 15px;
+  border: 1px solid #d0d3d9;
+  border-radius: 8px;
+  outline: none;
+  transition: border-color .2s;
+}
+
+.crawl-form input[type="url"]:focus {
+  border-color: #2563eb;
+}
+
+.crawl-form input[type="number"] {
+  width: 90px;
+  padding: 12px 10px;
+  font-size: 15px;
+  border: 1px solid #d0d3d9;
+  border-radius: 8px;
+  outline: none;
+  text-align: center;
+}
+
+.crawl-form button {
+  padding: 12px 24px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+  background: #2563eb;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background .2s;
+}
+
+.crawl-form button:hover {
+  background: #1d4ed8;
+}
+
+.crawl-form button:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+
+/* 状态提示 */
+.status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 24px auto;
+  color: #374151;
+}
+
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 3px solid #d1d5db;
+  border-top-color: #2563eb;
+  border-radius: 50%;
+  animation: spin .8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* 错误提示 */
+.error {
+  max-width: 720px;
+  margin: 20px auto 0;
+  padding: 12px 16px;
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* 结果区 */
+.summary {
+  margin: 28px 0 16px;
+  font-size: 15px;
+  color: #374151;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+.grid-item {
+  background: #fff;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .08);
+  transition: transform .15s;
+}
+
+.grid-item:hover {
+  transform: translateY(-2px);
+}
+
+.grid-item a {
+  display: block;
+  height: 220px;
+  background: #eef0f3;
+}
+
+.grid-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.grid-item .meta {
+  padding: 8px 10px;
+  font-size: 12px;
+  color: #6b7280;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.grid-item .meta .size {
+  flex-shrink: 0;
+}
+
+/* 一键生成 PPT 面板 */
+.ppt-panel {
+  margin: 24px 0 28px;
+  padding: 20px 24px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .06);
+}
+
+.ppt-panel h2 {
+  font-size: 18px;
+  margin-bottom: 4px;
+}
+
+.ppt-panel .ppt-hint {
+  font-size: 13px;
+  color: #6b7280;
+  margin-bottom: 14px;
+}
+
+.ppt-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.ppt-form input {
+  flex: 1;
+  min-width: 200px;
+  padding: 10px 14px;
+  font-size: 14px;
+  border: 1px solid #d0d3d9;
+  border-radius: 8px;
+  outline: none;
+  transition: border-color .2s;
+}
+
+.ppt-form input:focus {
+  border-color: #2563eb;
+}
+
+.ppt-form select {
+  padding: 10px 12px;
+  font-size: 14px;
+  border: 1px solid #d0d3d9;
+  border-radius: 8px;
+  background: #fff;
+  outline: none;
+  cursor: pointer;
+}
+
+.ppt-form button {
+  padding: 10px 22px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  background: #059669;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background .2s;
+}
+
+.ppt-form button:hover {
+  background: #047857;
+}
+
+.ppt-form button:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+
+.ppt-result {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 16px;
+  padding: 14px 16px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #166534;
+}
+
+.ppt-result a {
+  color: #2563eb;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.ppt-result a:hover {
+  text-decoration: underline;
+}
+
+.ppt-result a.download {
+  display: inline-block;
+  padding: 8px 18px;
+  color: #fff;
+  background: #059669;
+  border-radius: 8px;
+}
+
+.ppt-result a.download:hover {
+  background: #047857;
+  text-decoration: none;
+}
+
+.ppt-result .ppt-meta {
+  color: #6b7280;
+}

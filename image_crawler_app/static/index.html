@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>网页图片爬取工具</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="container">
+    <h1>网页图片爬取工具</h1>
+    <p class="subtitle">输入网址，自动爬取页面上的全部图片</p>
+
+    <form id="crawl-form" class="crawl-form">
+      <input
+        type="url"
+        id="url-input"
+        placeholder="https://example.com/"
+        required
+        autofocus
+      >
+      <input
+        type="number"
+        id="max-input"
+        min="1"
+        max="200"
+        value="50"
+        title="最多下载张数"
+        aria-label="最多下载张数"
+      >
+      <button type="submit" id="crawl-btn">开始爬取</button>
+    </form>
+
+    <div id="status" class="status" hidden>
+      <span class="spinner" aria-hidden="true"></span>
+      <span id="status-text">正在爬取...</span>
+    </div>
+
+    <div id="error" class="error" hidden></div>
+
+    <section id="result" hidden>
+      <div id="summary" class="summary"></div>
+
+      <section id="ppt-panel" class="ppt-panel" hidden>
+        <h2>一键生成 PPT</h2>
+        <p class="ppt-hint">基于本次抓取的图片，通过 dashi-ppt-skill 渲染并导出可编辑 PPTX</p>
+        <div class="ppt-form">
+          <input
+            type="text"
+            id="ppt-title"
+            placeholder="PPT 标题（默认取网页域名）"
+            autocomplete="off"
+          >
+          <input
+            type="text"
+            id="ppt-goal"
+            placeholder="核心目标（可选）"
+            autocomplete="off"
+          >
+          <select id="ppt-theme" title="选择视觉主题" aria-label="选择视觉主题">
+            <option value="theme01">轻拟态风</option>
+            <option value="theme02">炫光紫绿风</option>
+            <option value="theme03">深浅代码风</option>
+            <option value="theme04">玻璃糖果风</option>
+            <option value="theme05">色谱图表风</option>
+            <option value="theme06">深色图谱风</option>
+            <option value="theme07">冷白调研风</option>
+            <option value="theme08">黑金实验风</option>
+            <option value="theme09">深蓝杂志风</option>
+            <option value="theme10">金色指数风</option>
+            <option value="theme11">高能增长风</option>
+            <option value="theme12">声波霓虹风</option>
+          </select>
+          <button type="button" id="ppt-btn">生成 PPT</button>
+        </div>
+
+        <div id="ppt-status" class="status" hidden>
+          <span class="spinner" aria-hidden="true"></span>
+          <span id="ppt-status-text">正在生成 PPT，需渲染并导出，请耐心等待 1-3 分钟...</span>
+        </div>
+
+        <div id="ppt-result" class="ppt-result" hidden>
+          <a id="ppt-pptx-link" class="download" href="#">下载 PPTX</a>
+          <a id="ppt-preview-link" href="#" target="_blank" rel="noopener">在线预览</a>
+          <span id="ppt-meta"></span>
+        </div>
+
+        <div id="ppt-error" class="error" hidden></div>
+      </section>
+
+      <div id="grid" class="grid"></div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
