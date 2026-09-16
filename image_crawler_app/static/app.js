@@ -30,6 +30,9 @@
   const pptPreviewLink = document.getElementById("ppt-preview-link");
   const pptMeta = document.getElementById("ppt-meta");
   const pptError = document.getElementById("ppt-error");
+  const pptAiToggle = document.getElementById("ppt-ai-toggle");
+  const pptAiHint = document.getElementById("ppt-ai-hint");
+  const pptAiSummary = document.getElementById("ppt-ai-summary");
 
   // 最近一次爬取来源网址（用于推导 PPT 默认标题）
   let lastPageUrl = "";
@@ -97,17 +100,91 @@
     pptError.hidden = true;
     pptResult.hidden = true;
     pptStatus.hidden = true;
+    pptAiSummary.hidden = true;
+    pptAiSummary.textContent = "";
   }
 
-  /** 一键生成 PPT：调用 /api/ppt 并展示下载/预览入口。 */
+  /** 启动时查询 Kimi 能力：未配置 Key 则禁用 AI 开关并给出引导。 */
+  async function loadAiStatus() {
+    try {
+      const resp = await fetch("/api/ai/status");
+      const data = await resp.json();
+      if (data.enabled) {
+        pptAiToggle.checked = true;
+        pptAiToggle.disabled = false;
+        pptAiHint.hidden = true;
+      } else {
+        pptAiToggle.checked = false;
+        pptAiToggle.disabled = true;
+        pptAiHint.textContent = "未配置 Kimi API Key，AI 功能不可用（仍可使用模板生成）";
+        pptAiHint.hidden = false;
+      }
+    } catch (err) {
+      // 状态查询失败不阻塞主流程：保留默认勾选，生成时由后端返回真实错误
+      pptAiHint.textContent = "AI 状态查询失败，将在生成时校验";
+      pptAiHint.hidden = false;
+    }
+  }
+
+  /**
+   * 阶段一：调用 Kimi 视觉筛图，并在面板内展示保留/剔除摘要。
+   *
+   * @returns {Promise<string[]>} 入选图片文件名（页面顺序）；AI 关闭时返回空数组
+   */
+  async function selectImagesByKimi() {
+    pptStatusText.textContent = "Kimi 正在分析并筛选图片，请耐心等待...";
+    const resp = await fetch("/api/ai/select-images", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: pptTitle.value.trim(),
+        goal: pptGoal.value.trim(),
+      }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.detail || ("HTTP " + resp.status));
+    if (!data.kept || data.kept.length === 0) {
+      throw new Error("Kimi 判定没有适合入册的图片，可取消 AI 勾选后重试");
+    }
+
+    const parts = [`Kimi 筛选完成：保留 ${data.kept.length}/${data.total} 张`];
+    if (data.dropped && data.dropped.length > 0) {
+      const reasons = [...new Set(
+        data.dropped.map((item) => item.reason).filter(Boolean)
+      )].slice(0, 3);
+      parts.push(`剔除 ${data.dropped.length} 张` + (reasons.length ? `（${reasons.join("；")}）` : ""));
+    }
+    pptAiSummary.textContent = parts.join("　");
+    pptAiSummary.hidden = false;
+    return data.kept.map((item) => item.name);
+  }
+
+  /**
+   * 一键生成 PPT。
+   * AI 开启时为两阶段：先 /api/ai/select-images（Kimi 视觉筛图），
+   * 再 /api/ppt（Kimi 文案 + 本地渲染导出），两阶段切换不同等待提示；
+   * AI 关闭时保持原有单阶段模板流程。
+   */
   async function onGeneratePpt() {
     pptError.hidden = true;
     pptResult.hidden = true;
+    pptAiSummary.hidden = true;
+    pptAiSummary.textContent = "";
     pptBtn.disabled = true;
     pptStatus.hidden = false;
-    pptStatusText.textContent = "正在生成 PPT，需渲染并导出，请耐心等待 1-3 分钟...";
+
+    const useAi = pptAiToggle.checked && !pptAiToggle.disabled;
+    let selectedNames = [];
 
     try {
+      if (useAi) {
+        selectedNames = await selectImagesByKimi();
+        pptStatusText.textContent =
+          "Kimi 正在撰写文案，随后渲染并导出 PPT，请耐心等待 2-4 分钟...";
+      } else {
+        pptStatusText.textContent = "正在生成 PPT，需渲染并导出，请耐心等待 1-3 分钟...";
+      }
+
       const resp = await fetch("/api/ppt", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -116,6 +193,8 @@
           goal: pptGoal.value.trim(),
           theme: pptTheme.value,
           page_url: lastPageUrl,
+          use_ai: useAi,
+          selected: selectedNames,
         }),
       });
       const data = await resp.json();
@@ -124,6 +203,7 @@
       pptPptxLink.href = data.pptx_url;
       pptPreviewLink.href = data.html_url;
       pptMeta.textContent =
+        (data.ai ? "　|　Kimi 辅助生成" : "") +
         "　|　共 " + data.page_count + " 页（含 " + data.image_count + " 张图片）";
       pptResult.hidden = false;
     } catch (err) {
@@ -186,4 +266,6 @@
 
   form.addEventListener("submit", onSubmit);
   pptBtn.addEventListener("click", onGeneratePpt);
+
+  loadAiStatus();
 })();

@@ -247,6 +247,47 @@ h1 {
   cursor: not-allowed;
 }
 
+/* Kimi AI 开关与筛选摘要 */
+.ppt-ai-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.ai-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #374151;
+  cursor: pointer;
+  user-select: none;
+}
+
+.ai-toggle input {
+  width: 15px;
+  height: 15px;
+  accent-color: #059669;
+  cursor: pointer;
+}
+
+.ai-hint {
+  font-size: 12px;
+  color: #b45309;
+}
+
+.ai-summary {
+  margin-top: 10px;
+  padding: 8px 12px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #1e40af;
+}
+
 .ppt-result {
   display: flex;
   align-items: center;

@@ -246,13 +246,18 @@ def _read_ai_cache() -> dict[str, dict]:
         return {}
 
 
-def _write_ai_cache(assessments: list[ai_pipeline.ImageAssessment]) -> None:
-    """把本轮筛选结果整体写入缓存（覆盖旧缓存，与当前 crawled 目录一一对应）。"""
+def _write_ai_cache(items: list[dict]) -> None:
+    """
+    把筛选结果整体写入缓存（覆盖旧缓存，与当前 crawled 目录一一对应）。
+
+    Args:
+        items: assessment 字典列表（统一为 dict，避免调用点混入领域对象）
+    """
     DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
     payload = {
         "updated_at": datetime.now().isoformat(timespec="seconds"),
         "vision_model": settings.kimi_vision_model,
-        "items": [item.to_dict() for item in assessments],
+        "items": items,
     }
     _AI_CACHE_FILE.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
@@ -305,7 +310,7 @@ async def select_images(req: SelectImagesRequest) -> SelectImagesResponse:
     except KimiError as exc:
         raise HTTPException(status_code=502, detail=f"Kimi 筛图失败: {exc}") from exc
 
-    _write_ai_cache(assessed)
+    _write_ai_cache([item.to_dict() for item in assessed])
     return SelectImagesResponse(
         total=len(assessed),
         kept=[AssessmentItem(**item.to_dict()) for item in kept],
@@ -422,7 +427,7 @@ async def _resolve_ai_selection(
             assessed = await ai_pipeline.assess_images(
                 client, [by_name[name] for name in missing], title, goal
             )
-            cache.update({item.name: item for item in assessed})
+            cache.update({item.name: item.to_dict() for item in assessed})
             _write_ai_cache(list(cache.values()))
         chosen = [by_name[name] for name in ordered_names]
         assessments = [_assessment_from_cache(cache[name]) for name in ordered_names]
@@ -433,7 +438,7 @@ async def _resolve_ai_selection(
     except KimiError as exc:
         raise HTTPException(status_code=502, detail=f"Kimi 筛图失败: {exc}") from exc
     kept, _dropped = ai_pipeline.choose_kept(assessed)
-    _write_ai_cache(assessed)
+    _write_ai_cache([item.to_dict() for item in assessed])
     if not kept:
         raise HTTPException(status_code=400, detail="Kimi 判定当前图片均不适合入册，可关闭 AI 后重试")
     return [DOWNLOAD_DIR / item.name for item in kept], kept
