@@ -1,3 +1,7 @@
 __pycache__/
 *.pyc
 .venv/
+**/node_modules/
+image_crawler_app/static/_ppt/
+image_crawler_app/static/crawled/
+image_crawler_app/output/

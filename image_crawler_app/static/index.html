@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>网页图片爬取工具</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=20260916-3">
 </head>
 <body>
   <main class="container">
@@ -74,6 +74,15 @@
           <button type="button" id="ppt-btn">生成 PPT</button>
         </div>
 
+        <div class="ppt-ai-row">
+          <label class="ai-toggle" title="启用后流程：爬取图片 → Kimi 视觉筛选 → Kimi 撰写文案 → 本地渲染导出">
+            <input type="checkbox" id="ppt-ai-toggle" checked>
+            <span>Kimi 智能筛图 + AI 文案</span>
+          </label>
+          <span id="ppt-ai-hint" class="ai-hint" hidden></span>
+        </div>
+        <div id="ppt-ai-summary" class="ai-summary" hidden></div>
+
         <div id="ppt-status" class="status" hidden>
           <span class="spinner" aria-hidden="true"></span>
           <span id="ppt-status-text">正在生成 PPT，需渲染并导出，请耐心等待 1-3 分钟...</span>
@@ -92,6 +101,6 @@
     </section>
   </main>
 
-  <script src="app.js"></script>
+  <script src="app.js?v=20260916-3"></script>
 </body>
 </html>

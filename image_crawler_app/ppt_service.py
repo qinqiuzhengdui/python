@@ -11,9 +11,13 @@ PPT 生成业务层：调用本地 dashi-ppt-skill 项目，把爬取的图片�
 7. validate:swiss           —— 校验渲染产物结构
 8. export:pptx --selected-only —— 导出可编辑 PPTX
 
+内容来源：
+- 默认走 content_pack.build_content_pack 的确定性模板；
+- Kimi 模式由调用方传入 content_pack（文案 AI 生成、指标取真实数据）。
+版式骨架/渲染/导出均为 dashi 本地能力（严格 JSX 布局契约，不由 LLM 直接产出）。
+
 依赖：
 - Node.js 20+ / npm（dashi-ppt-skill 项目已自带 package.json，首次调用自动装依赖）
-- 本模块只调用 dashi-ppt-skill 的本地命令，不联网生成内容。
 
 @example
     from ppt_service import generate_ppt
@@ -24,6 +28,8 @@ PPT 生成业务层：调用本地 dashi-ppt-skill 项目，把爬取的图片�
         goal="从目标网页抓取的高清图片",
         theme="theme01",
         image_paths=[Path("static/crawled/a.jpg")],
+        content_pack=ai_pack,          # 可选；不传则使用确定性模板
+        image_notes=["男子站在砖墙前"],  # 可选；Kimi 画面描述，作为 media alt
     )
     print(result["pptx_path"], result["html_url"])
 """
@@ -36,6 +42,8 @@ import shutil
 import subprocess
 import uuid
 from pathlib import Path
+
+from content_pack import build_ai_content_pack, build_content_pack
 
 # ---------------------------------------------------------------------------
 # 常量与配置（集中管理，避免散落在业务代码中）
@@ -183,16 +191,22 @@ def _mime_for(path: Path) -> str:
 # 核心流程
 # ---------------------------------------------------------------------------
 
-def stage_media(deck_dir: Path, image_paths: list[Path]) -> list[dict]:
+def stage_media(
+    deck_dir: Path,
+    image_paths: list[Path],
+    image_notes: list[str] | None = None,
+) -> list[dict]:
     """
     调用 media:stage 把图片复制进 deck 的 ppt/assets/user-media/。
 
     Args:
         deck_dir: 本次 deck 输出目录
         image_paths: 待入册图片的绝对路径
+        image_notes: 与图片同序的画面描述（Kimi 视觉产出），作为 media alt；
+                     缺项/未传时回退为"图片 N"
 
     Returns:
-        media 条目列表：[{"src": 相对路径, "mime": MIME, "alt": 描述}]
+        media 条目列表：[{"src": 相对路径, "kind": ..., "type": MIME, "alt": 描述, "size": 字节}]
 
     Raises:
         PptError: 有图片不存在 / 类型不支持 / 命令失败
@@ -213,157 +227,18 @@ def stage_media(deck_dir: Path, image_paths: list[Path]) -> list[dict]:
     staged = []
     for i, item in enumerate(items):
         size = image_paths[i].stat().st_size
+        note = image_notes[i].strip() if image_notes and i < len(image_notes) and image_notes[i] else ""
         staged.append(
             {
                 "src": item["relative"],
                 "kind": item.get("kind", "image"),
                 "type": item.get("mime", _mime_for(Path(image_paths[i]))),
-                "alt": f"图片 {i + 1}",
-                # 仅用于构建正文页“文件大小”事实，PageContentPack 校验会忽略未知字段
+                "alt": note or f"图片 {i + 1}",
+                # 仅供本地构建正文页"文件大小"事实，写入内容包前会被剥离
                 "size": size,
             }
         )
     return staged
-
-
-def build_content_pack(
-    title: str,
-    goal: str,
-    media_items: list[dict],
-) -> dict:
-    """
-    按 PageContentPack schema 生成内容计划（封面 + 每图一页 + 结尾页）。
-
-    内容形状基于对 12 个主题的实证探测（layout-query 命中数）确定：
-    - 封面/结尾页必须携带 items（3 条议程事实），命中数最高；携带 media 反而
-      排除无媒体槽的封面布局，因此封面不挂媒体。
-    - 正文页必须同时携带 media（单图）+ items（3 条事实）：只有 media 时多数
-      主题命中不足 3 套模板（theme05/12 为 0），加 items 后命中数翻数倍。
-
-    Args:
-        title: PPT 标题
-        goal: 整份 PPT 的核心目标文案
-        media_items: stage_media 返回的 media 条目
-
-    Returns:
-        {"pages": [...]} 内容计划 JSON
-    """
-    pages = [
-        {
-            "id": "page-1",
-            "presentation": {
-                "pageIntent": "cover",
-                "coreMessage": goal,
-                "title": {"full": title, "short": title},
-                "summary": {"full": goal, "short": goal},
-                "items": _cover_items(len(media_items)),
-            },
-        }
-    ]
-    for index, media in enumerate(media_items, start=1):
-        pages.append(
-            {
-                "id": f"page-{index + 1}",
-                "presentation": {
-                    "pageIntent": "body",
-                    "coreMessage": f"图集欣赏 {index}",
-                    "title": {"full": f"图集欣赏 {index}", "short": f"图 {index}"},
-                    "summary": {"full": "来自目标网页的高清图片", "short": "高清图片"},
-                    "items": _body_items(index, media.get("size", 0)),
-                    "media": [media],
-                },
-            }
-        )
-    pages.append(
-        {
-            "id": f"page-{len(media_items) + 2}",
-            "presentation": {
-                "pageIntent": "closing",
-                "coreMessage": "感谢观看",
-                "title": {"full": "感谢观看", "short": "感谢观看"},
-                "summary": {"full": goal, "short": "谢谢观看"},
-                "items": _closing_items(),
-            },
-        }
-    )
-    return {"pages": pages}
-
-
-def _cover_items(image_count: int) -> list[dict]:
-    """封面页议程事实（3 条，命中最多的封面布局族）。"""
-    return [
-        {
-            "id": "cover-1",
-            "label": "精选图集",
-            "detail": {"full": f"共收录 {image_count} 张高清图片", "short": f"{image_count} 张图片"},
-        },
-        {
-            "id": "cover-2",
-            "label": "高清原图",
-            "detail": {"full": "来自目标网页的原始大图", "short": "原始大图"},
-        },
-        {
-            "id": "cover-3",
-            "label": "一键成册",
-            "detail": {"full": "自动排版生成可编辑 PPT", "short": "自动排版"},
-        },
-    ]
-
-
-def _body_items(index: int, size_bytes: int) -> list[dict]:
-    """
-    正文页事实（3 条，含数值指标）。
-
-    带 value/displayValue/unit 的指标型 items 在 12 个主题下命中布局数显著更高
-    （实测 min≥5，而纯文本 items 在 theme06/08 命中不足 3 套模板）。
-
-    Args:
-        index: 当前图片序号（从 1 开始）
-        size_bytes: 图片文件字节数（真实数据，用于“文件大小”指标）
-
-    Returns:
-        items 列表
-    """
-    if size_bytes >= 1024 * 1024:
-        display, unit = f"{size_bytes / 1024 / 1024:.1f}", "MB"
-    else:
-        display, unit = f"{max(1, size_bytes // 1024)}", "KB"
-    return [
-        {
-            "id": f"body-{index}-1",
-            "label": "图序",
-            "value": index,
-            "displayValue": f"{index:02d}",
-        },
-        {
-            "id": f"body-{index}-2",
-            "label": "文件大小",
-            "value": round(float(display), 2),
-            "displayValue": display,
-            "unit": unit,
-        },
-        {
-            "id": f"body-{index}-3",
-            "label": "画质",
-            "detail": {"full": "原图分辨率直出", "short": "原图直出"},
-        },
-    ]
-
-
-def _closing_items() -> list[dict]:
-    """结尾页事实（2 条，命中最多的结尾布局族）。"""
-    return [
-        {
-            "id": "closing-1",
-            "label": "感谢观看",
-            "detail": {"full": "谢谢您的浏览", "short": "谢谢浏览"},
-        },
-        {
-            "id": "closing-2",
-            "label": "期待再见",
-            "detail": {"full": "期待下一次精彩分享", "short": "下次见"},
-        },
-    ]
 
 
 def scaffold_goal(
@@ -476,16 +351,28 @@ def generate_ppt(
     goal: str,
     theme: str,
     image_paths: list[Path],
+    content_pack: dict | None = None,
+    image_notes: list[str] | None = None,
+    ai_copy: dict | None = None,
 ) -> dict:
     """
-    一键生成 PPT：编排 media:stage → scaffold → 校验/渲染 → 导出 PPTX。
+    一键生成 PPT：编排 media:stage → 内容包 → scaffold → 校验/渲染 → 导出 PPTX。
+
+    内容包三选一（优先级 content_pack > ai_copy > 确定性模板）：
+    - content_pack：调用方已装配完成的完整 PageContentPack；
+    - ai_copy：Kimi 的结构化文案，在 stage 完成后与真实 media(src/size) 合并
+      （必须在此合并，因为相对路径与文件字节只有 stage 之后才确定）；
+    - 两者皆空：content_pack.build_content_pack 确定性模板。
 
     Args:
         deck_dir: 本次 deck 输出目录（最终产物与 pptx 都在其中）
         title: PPT 标题
         goal: 核心目标文案
         theme: 主题包（theme01~theme12）
-        image_paths: 待入册图片绝对路径列表
+        image_paths: 待入册图片绝对路径列表（Kimi 模式下为筛选后的入选名单）
+        content_pack: 已装配好的 PageContentPack；与 ai_copy 二选一
+        image_notes: 与 image_paths 同序的画面描述，写入 media.alt
+        ai_copy: ai_pipeline.generate_page_copy 产出的文案结构
 
     Returns:
         {
@@ -504,14 +391,28 @@ def generate_ppt(
         raise PptError("没有可用图片，请先完成爬取")
 
     deck_dir.mkdir(parents=True, exist_ok=True)
-    media_items = stage_media(deck_dir, image_paths)
+    media_items = stage_media(deck_dir, image_paths, image_notes=image_notes)
 
     title = title.strip() or "网页图片图集"
     goal = goal.strip() or "从目标网页抓取的高清图片图集"
 
+    if content_pack is None:
+        # Kimi 文案在 stage 之后合并：此时 media 条目已带真实相对路径与文件大小
+        content_pack = (
+            build_ai_content_pack(title, goal, media_items, ai_copy)
+            if ai_copy is not None
+            else build_content_pack(title, goal, media_items)
+        )
+    elif ai_copy is not None:
+        raise PptError("content_pack 与 ai_copy 不可同时传入")
+    elif len(content_pack.get("pages", [])) != len(media_items) + 2:
+        # 调用方注入的内容包页数必须与"封面 + N 正文 + 结尾"严格一致，
+        # 否则 scaffold 的 --pages 与内容计划对不上会直接报错
+        raise PptError("注入的内容包页数与图片数量不匹配（要求 = 图片数 + 2）")
+
     content_pack_path = deck_dir / "page-content-pack.json"
     content_pack_path.write_text(
-        json.dumps(build_content_pack(title, goal, media_items), ensure_ascii=False, indent=2),
+        json.dumps(content_pack, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
 
