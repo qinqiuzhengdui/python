@@ -5,3 +5,10 @@ __pycache__/
 image_crawler_app/static/_ppt/
 image_crawler_app/static/crawled/
 image_crawler_app/output/
+# 密钥与日志：禁止入库
+.env
+*.log
+# 嵌套 git 仓库副本（本地遗留，含密钥，勿提交）
+python/
+# dashi-ppt-skill 构建产物（可再生成）
+dashi-ppt-skill/skills/dashi-ppt/project/dist/
